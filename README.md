@@ -1,3 +1,9 @@
+# 个人修改
+
+将HigherHRNet转换为tensorrt
+
+配合TensorRT仓库使用
+
 # [HigherHRNet: Scale-Aware Representation Learning for Bottom-Up Human Pose Estimation (CVPR 2020)](https://arxiv.org/abs/1908.10357)
 
 ## News
@@ -16,36 +22,36 @@ Bottom-up human pose estimation methods have difficulties in predicting the corr
 ## Main Results
 ### Results on COCO val2017 without multi-scale test
 | Method             | Backbone | Input size | #Params | GFLOPs |    AP | Ap .5 | AP .75 | AP (M) | AP (L) |
-|--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------| 
-| HigherHRNet        | HRNet-w32  | 512      |  28.6M  | 47.9   | 67.1  | 86.2  |  73.0  |  61.5  |  76.1  | 
-| HigherHRNet        | HRNet-w32  | 640      |  28.6M  | 74.8   | 68.5  | 87.1  |  74.7  |  64.3  |  75.3  | 
-| HigherHRNet        | HRNet-w48  | 640      |  63.8M  | 154.3  | 69.9  | 87.2  |  76.1  |  65.4  |  76.4  | 
+|--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------|
+| HigherHRNet        | HRNet-w32  | 512      |  28.6M  | 47.9   | 67.1  | 86.2  |  73.0  |  61.5  |  76.1  |
+| HigherHRNet        | HRNet-w32  | 640      |  28.6M  | 74.8   | 68.5  | 87.1  |  74.7  |  64.3  |  75.3  |
+| HigherHRNet        | HRNet-w48  | 640      |  63.8M  | 154.3  | 69.9  | 87.2  |  76.1  |  65.4  |  76.4  |
 
 ### Results on COCO val2017 *with* multi-scale test
 | Method             | Backbone | Input size | #Params | GFLOPs |    AP | Ap .5 | AP .75 | AP (M) | AP (L) |
-|--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------| 
-| HigherHRNet        | HRNet-w32  | 512      |  28.6M  | 47.9   | 69.9  | 87.1  |  76.0  |  65.3  |  77.0  | 
-| HigherHRNet        | HRNet-w32  | 640      |  28.6M  | 74.8   | 70.6  | 88.1  |  76.9  |  66.6  |  76.5  | 
-| HigherHRNet        | HRNet-w48  | 640      |  63.8M  | 154.3  | 72.1  | 88.4  |  78.2  |  67.8  |  78.3  | 
+|--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------|
+| HigherHRNet        | HRNet-w32  | 512      |  28.6M  | 47.9   | 69.9  | 87.1  |  76.0  |  65.3  |  77.0  |
+| HigherHRNet        | HRNet-w32  | 640      |  28.6M  | 74.8   | 70.6  | 88.1  |  76.9  |  66.6  |  76.5  |
+| HigherHRNet        | HRNet-w48  | 640      |  63.8M  | 154.3  | 72.1  | 88.4  |  78.2  |  67.8  |  78.3  |
 
 ### Results on COCO test-dev2017 without multi-scale test
 | Method             | Backbone | Input size | #Params | GFLOPs |    AP | Ap .5 | AP .75 | AP (M) | AP (L) |
 |--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------|
-| OpenPose\*         |    -     | -          |   -     |  -     | 61.8  | 84.9  |  67.5  |  57.1  |  68.2  | 
-| Hourglass          | Hourglass  | 512      | 277.8M  | 206.9  | 56.6  | 81.8  |  61.8  |  49.8  |  67.0  | 
+| OpenPose\*         |    -     | -          |   -     |  -     | 61.8  | 84.9  |  67.5  |  57.1  |  68.2  |
+| Hourglass          | Hourglass  | 512      | 277.8M  | 206.9  | 56.6  | 81.8  |  61.8  |  49.8  |  67.0  |
 | PersonLab          | ResNet-152  | 1401    |  68.7M  | 405.5  | 66.5  | 88.0  |  72.6  |  62.4  |  72.3  |
-| PifPaf             |    -     | -          |   -     |  -     | 66.7  | -     |  -     |  62.4  |  72.9  | 
-| Bottom-up HRNet    | HRNet-w32  | 512      |  28.5M  | 38.9   | 64.1  | 86.3  |  70.4  |  57.4  |  73.9  | 
-| **HigherHRNet**    | HRNet-w32  | 512      |  28.6M  | 47.9   | 66.4  | 87.5  |  72.8  |  61.2  |  74.2  | 
-| **HigherHRNet**    | HRNet-w48  | 640      |  63.8M  | 154.3  | **68.4**  | **88.2**  |  **75.1**  |  **64.4**  |  **74.2**  | 
+| PifPaf             |    -     | -          |   -     |  -     | 66.7  | -     |  -     |  62.4  |  72.9  |
+| Bottom-up HRNet    | HRNet-w32  | 512      |  28.5M  | 38.9   | 64.1  | 86.3  |  70.4  |  57.4  |  73.9  |
+| **HigherHRNet**    | HRNet-w32  | 512      |  28.6M  | 47.9   | 66.4  | 87.5  |  72.8  |  61.2  |  74.2  |
+| **HigherHRNet**    | HRNet-w48  | 640      |  63.8M  | 154.3  | **68.4**  | **88.2**  |  **75.1**  |  **64.4**  |  **74.2**  |
 
 ### Results on COCO test-dev2017 *with* multi-scale test
 | Method             | Backbone | Input size | #Params | GFLOPs |    AP | Ap .5 | AP .75 | AP (M) | AP (L) |
 |--------------------|----------|------------|---------|--------|-------|-------|--------|--------|--------|
-| Hourglass          | Hourglass  | 512      | 277.8M  | 206.9  | 63.0  | 85.7  |  68.9  |  58.0  |  70.4  | 
-| Hourglass\*        | Hourglass  | 512      | 277.8M  | 206.9  | 65.5  | 86.8  |  72.3  |  60.6  |  72.6  | 
-| PersonLab          | ResNet-152  | 1401    |  68.7M  | 405.5  | 68.7  | 89.0  |  75.4  |  64.1  |  75.5  | 
-| **HigherHRNet**    | HRNet-w48  | 640      |  63.8M  | 154.3  | **70.5**  | **89.3**  |  **77.2**  |  **66.6**  |  **75.8**  | 
+| Hourglass          | Hourglass  | 512      | 277.8M  | 206.9  | 63.0  | 85.7  |  68.9  |  58.0  |  70.4  |
+| Hourglass\*        | Hourglass  | 512      | 277.8M  | 206.9  | 65.5  | 86.8  |  72.3  |  60.6  |  72.6  |
+| PersonLab          | ResNet-152  | 1401    |  68.7M  | 405.5  | 68.7  | 89.0  |  75.4  |  64.1  |  75.5  |
+| **HigherHRNet**    | HRNet-w48  | 640      |  63.8M  | 154.3  | **70.5**  | **89.3**  |  **77.2**  |  **66.6**  |  **75.8**  |
 
 ### Results on CrowdPose test
 | Method             |    AP | Ap .5 | AP .75 | AP (E) | AP (M) | AP (H) |
@@ -65,6 +71,7 @@ The code is developed using python 3.6 on Ubuntu 16.04. NVIDIA GPUs are needed. 
 ## Quick start
 ### Installation
 1. Install pytorch >= v1.1.0 following [official instruction](https://pytorch.org/).  
+   
    - **Tested with pytorch v1.4.0**
 2. Clone this repo, and we'll call the directory that you cloned as ${POSE_ROOT}.
 3. Install dependencies:
@@ -84,6 +91,7 @@ The code is developed using python 3.6 on Ubuntu 16.04. NVIDIA GPUs are needed. 
    ```
    Note that instructions like # COCOAPI=/path/to/install/cocoapi indicate that you should pick a path where you'd like to have the software cloned and then set an environment variable (COCOAPI in this case) accordingly.
 5. Install [CrowdPoseAPI](https://github.com/Jeff-sjtu/CrowdPose) exactly the same as COCOAPI.  
+   
    - **There is a bug in the CrowdPoseAPI, please reverse https://github.com/Jeff-sjtu/CrowdPose/commit/785e70d269a554b2ba29daf137354103221f479e**
 6. Init output(training model output directory) and log(tensorboard log directory) directory:
 
@@ -168,7 +176,7 @@ After downloading data, run `python tools/crowdpose_concat_train_val.py` under `
 ### Training and Testing
 
 #### Testing on COCO val2017 dataset using model zoo's models ([GoogleDrive](https://drive.google.com/drive/folders/1X9-TzWpwbX2zQf2To8lB-ZQHMYviYYh6?usp=sharing))
- 
+
 
 For single-scale testing:
 

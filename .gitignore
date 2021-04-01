@@ -3,6 +3,8 @@
 *.iml
 out
 gen
+*.onnx
+*.zip
 
 ### Vim template
 [._]*.s[a-w][a-z]

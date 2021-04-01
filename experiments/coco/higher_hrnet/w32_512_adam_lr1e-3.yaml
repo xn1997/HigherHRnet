@@ -100,7 +100,7 @@ MODEL:
   PRETRAINED: 'models/pytorch/imagenet/hrnet_w32-36af842e.pth'
   TAG_PER_JOINT: True
 TEST:
-  FLIP_TEST: True
+  FLIP_TEST: False #True
   IMAGES_PER_GPU: 1
   MODEL_FILE: '' 
   SCALE_FACTOR: [1]

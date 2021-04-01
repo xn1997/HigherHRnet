@@ -19,7 +19,6 @@ import logging
 import torch
 import torch.nn as nn
 
-
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
@@ -145,7 +144,7 @@ class HighResolutionModule(nn.Module):
                          stride=1):
         downsample = None
         if stride != 1 or \
-           self.num_inchannels[branch_index] != num_channels[branch_index] * block.expansion:
+                self.num_inchannels[branch_index] != num_channels[branch_index] * block.expansion:
             downsample = nn.Sequential(
                 nn.Conv2d(self.num_inchannels[branch_index],
                           num_channels[branch_index] * block.expansion,
@@ -193,12 +192,12 @@ class HighResolutionModule(nn.Module):
                                   0,
                                   bias=False),
                         nn.BatchNorm2d(num_inchannels[i]),
-                        nn.Upsample(scale_factor=2**(j-i), mode='nearest')))
+                        nn.Upsample(scale_factor=2 ** (j - i), mode='nearest')))
                 elif j == i:
                     fuse_layer.append(None)
                 else:
                     conv3x3s = []
-                    for k in range(i-j):
+                    for k in range(i - j):
                         if k == i - j - 1:
                             num_outchannels_conv3x3 = num_inchannels[i]
                             conv3x3s.append(nn.Sequential(
@@ -327,7 +326,7 @@ class PoseHigherResolutionNet(nn.Module):
         for i in range(deconv_cfg.NUM_DECONVS):
             input_channels = deconv_cfg.NUM_CHANNELS[i]
             output_channels = cfg.MODEL.NUM_JOINTS + dim_tag \
-                if cfg.LOSS.WITH_AE_LOSS[i+1] else cfg.MODEL.NUM_JOINTS
+                if cfg.LOSS.WITH_AE_LOSS[i + 1] else cfg.MODEL.NUM_JOINTS
             final_layers.append(nn.Conv2d(
                 in_channels=input_channels,
                 out_channels=output_channels,
@@ -410,10 +409,10 @@ class PoseHigherResolutionNet(nn.Module):
                     transition_layers.append(None)
             else:
                 conv3x3s = []
-                for j in range(i+1-num_branches_pre):
+                for j in range(i + 1 - num_branches_pre):
                     inchannels = num_channels_pre_layer[-1]
                     outchannels = num_channels_cur_layer[i] \
-                        if j == i-num_branches_pre else inchannels
+                        if j == i - num_branches_pre else inchannels
                     conv3x3s.append(nn.Sequential(
                         nn.Conv2d(
                             inchannels, outchannels, 3, 2, 1, bias=False),
@@ -514,9 +513,10 @@ class PoseHigherResolutionNet(nn.Module):
                 x = torch.cat((x, y), 1)
 
             x = self.deconv_layers[i](x)
-            y = self.final_layers[i+1](x)
+            y = self.final_layers[i + 1](x)
             final_outputs.append(y)
-
+        "将tag和heatmap的双线性插值处理移动到网络结构中，方便直接转换到TRT中"
+        final_outputs = postprocess(final_outputs)
         return final_outputs
 
     def init_weights(self, pretrained='', verbose=True):
@@ -551,7 +551,7 @@ class PoseHigherResolutionNet(nn.Module):
             need_init_state_dict = {}
             for name, m in pretrained_state_dict.items():
                 if name.split('.')[0] in self.pretrained_layers \
-                   or self.pretrained_layers[0] is '*':
+                        or self.pretrained_layers[0] is '*':
                     if name in parameters_names or name in buffers_names:
                         if verbose:
                             logger.info(
@@ -560,6 +560,66 @@ class PoseHigherResolutionNet(nn.Module):
                         need_init_state_dict[name] = m
             self.load_state_dict(need_init_state_dict, strict=False)
 
+    def load_state_dict_by_layers(self, param_dict,**kwargs):
+        for i in param_dict:
+            self.state_dict()[i].copy_(param_dict[i])
+            # try:
+            #     self.state_dict()[i].copy_(param_dict[i])
+            # except:
+            #     pass
+
+NUM_JOINTS = 17
+def postprocess(outputs, size_projected=(512, 512)):
+    """
+    :param outputs: list[2] tensor gpu
+    :return heatmaps: (1 17 H W)
+            tags (1 17 H W 1)
+    """
+    heatmaps_avg = 0
+    num_heatmaps = 0
+    heatmaps = []
+    tags = []
+    "1/4 heatmap+tag"
+    output = outputs[0]
+    output = torch.nn.functional.interpolate(
+        output,
+        size=(outputs[-1].size(2), outputs[-1].size(3)),
+        mode='bilinear',
+        align_corners=False
+    )
+    heatmaps_avg += output[:, :NUM_JOINTS]
+    tags.append(output[:, NUM_JOINTS:])
+    "1/2 heatmap"
+    output = outputs[-1]
+    heatmaps_avg += output[:, :NUM_JOINTS]
+    "final heatmap"
+    heatmaps.append(heatmaps_avg / 2)
+
+    heatmaps = [
+        torch.nn.functional.interpolate(
+            hms,
+            size=(size_projected[1], size_projected[0]),
+            mode='bilinear',
+            align_corners=False
+        )
+        for hms in heatmaps
+    ]
+    tags = [
+        torch.nn.functional.interpolate(
+            tms,
+            size=(size_projected[1], size_projected[0]),
+            mode='bilinear',
+            align_corners=False
+        )
+        for tms in tags
+    ]
+
+    # tags_list = []
+    # for tms in tags:  # 最后扩展一维，用于+flip后的处理
+    #     tags_list.append(torch.unsqueeze(tms, dim=4))
+    # tags = torch.cat(tags_list, dim=4)
+    "注意：转TRT时，tags在heatmaps前面输出"
+    return outputs, heatmaps, tags
 
 def get_pose_net(cfg, is_train, **kwargs):
     model = PoseHigherResolutionNet(cfg, **kwargs)
@@ -568,3 +628,7 @@ def get_pose_net(cfg, is_train, **kwargs):
         model.init_weights(cfg.MODEL.PRETRAINED, verbose=cfg.VERBOSE)
 
     return model
+
+
+if __name__ == '__main__':
+    get_pose_net()

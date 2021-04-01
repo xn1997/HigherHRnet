@@ -32,7 +32,7 @@ from config import update_config
 from core.inference import get_multi_stage_outputs
 from core.inference import aggregate_results
 from core.group import HeatmapParser
-from dataset import make_test_dataloader
+# from dataset import make_test_dataloader
 from fp16_utils.fp16util import network_to_half
 from utils.utils import create_logger
 from utils.utils import get_model_summary
@@ -43,6 +43,69 @@ from utils.transforms import get_final_preds
 from utils.transforms import get_multi_scale_size
 
 torch.multiprocessing.set_sharing_strategy('file_system')
+# test_image_path = "./data/512resize_person.jpg"
+test_image_path = "./data/512resize_sports.jpg"
+input_name = ['input']
+# output_name = ['output1','output2']  # 必须要有输入输出
+output_name = ['output']
+input = (torch.randn(1, 3, 512, 512))
+is_export_onnx = False
+from PIL import Image
+import os.path as osp
+import numpy as np
+import time
+
+def read_image(img_path):
+    """Keep reading image until succeed.
+    This can avoid IOError incurred by heavy IO process."""
+    got_img = False
+    if not osp.exists(img_path):
+        raise IOError("{} does not exist".format(img_path))
+    while not got_img:
+        try:
+            img = Image.open(img_path).convert('RGB')  # uint8数据
+            got_img = True
+        except IOError:
+            print("IOError incurred when reading '{}'. Will redo. Don't worry. Just chill.".format(img_path))
+            pass
+    return np.asarray(img)
+
+
+class ImageDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset, transform=None):
+        self.dataset = dataset
+        self.transform = transform
+        self.name = "COCO"
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        img_path = self.dataset
+        img = read_image(img_path)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, 0
+
+
+def make_test_dataloader(cfg):
+    transforms = None
+    dataset = ImageDataset(
+        test_image_path,
+        transforms
+    )
+
+    data_loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=False
+    )
+
+    return data_loader, dataset
 
 
 def parse_args():
@@ -73,14 +136,14 @@ def _print_name_value(logger, name_value, full_arch_name):
         ' '.join(['| {}'.format(name) for name in names]) +
         ' |'
     )
-    logger.info('|---' * (num_values+1) + '|')
+    logger.info('|---' * (num_values + 1) + '|')
 
     if len(full_arch_name) > 15:
         full_arch_name = full_arch_name[:8] + '...'
     logger.info(
         '| ' + full_arch_name + ' ' +
         ' '.join(['| {:.3f}'.format(value) for value in values]) +
-         ' |'
+        ' |'
     )
 
 
@@ -101,7 +164,7 @@ def main():
     torch.backends.cudnn.deterministic = cfg.CUDNN.DETERMINISTIC
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED
 
-    model = eval('models.'+cfg.MODEL.NAME+'.get_pose_net')(
+    model = eval('models.' + cfg.MODEL.NAME + '.get_pose_net')(
         cfg, is_train=False
     )
 
@@ -115,13 +178,15 @@ def main():
 
     if cfg.TEST.MODEL_FILE:
         logger.info('=> loading model from {}'.format(cfg.TEST.MODEL_FILE))
-        model.load_state_dict(torch.load(cfg.TEST.MODEL_FILE), strict=True)
+        model.load_state_dict_by_layers(torch.load(cfg.TEST.MODEL_FILE), strict=True)
     else:
         model_state_file = os.path.join(
             final_output_dir, 'model_best.pth.tar'
         )
         logger.info('=> loading model from {}'.format(model_state_file))
         model.load_state_dict(torch.load(model_state_file))
+    if is_export_onnx:
+        torch.onnx.export(model, input, 'hrnet.onnx', input_names=input_name, output_names=output_name, verbose=True, opset_version=11)
 
     model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
     model.eval()
@@ -175,6 +240,7 @@ def main():
                     cfg.TEST.PROJECT2IMAGE, base_size
                 )
 
+                deal_time_start = time.time()
                 final_heatmaps, tags_list = aggregate_results(
                     cfg, s, final_heatmaps, tags_list, heatmaps, tags
                 )
@@ -189,6 +255,9 @@ def main():
                 grouped, center, scale,
                 [final_heatmaps.size(3), final_heatmaps.size(2)]
             )
+            deal_time_end = time.time()
+            print("postprocess time is : {}".format(deal_time_end-deal_time_start))
+
 
         if cfg.TEST.LOG_PROGRESS:
             pbar.update()
@@ -198,7 +267,7 @@ def main():
             # logger.info('=> write {}'.format(prefix))
             save_valid_image(image, final_results, '{}.jpg'.format(prefix), dataset=test_dataset.name)
             # save_debug_images(cfg, image_resized, None, None, outputs, prefix)
-
+            exit()
         all_preds.append(final_results)
         all_scores.append(scores)
 

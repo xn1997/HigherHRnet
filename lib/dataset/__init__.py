@@ -4,10 +4,10 @@
 # Written by Bin Xiao (leoxiaobin@gmail.com)
 # ------------------------------------------------------------------------------
 
-from .COCOKeypoints import CocoKeypoints as coco
-from .CrowdPoseKeypoints import CrowdPoseKeypoints as crowd_pose
-from .build import make_dataloader
-from .build import make_test_dataloader
+# from .COCOKeypoints import CocoKeypoints as coco
+# from .CrowdPoseKeypoints import CrowdPoseKeypoints as crowd_pose
+# from .build import make_dataloader
+# from .build import make_test_dataloader
 
 # dataset dependent configuration for visualization
 coco_part_labels = [

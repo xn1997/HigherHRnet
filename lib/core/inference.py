@@ -9,10 +9,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 import torch
 
-from dataset.transforms import FLIP_CONFIG
+# from dataset.transforms import FLIP_CONFIG
+FLIP_CONFIG = {
+    'COCO': [
+        0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15
+    ],
+    'COCO_WITH_CENTER': [
+        0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17
+    ],
+    'CROWDPOSE': [
+        1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 12, 13
+    ],
+    'CROWDPOSE_WITH_CENTER': [
+        1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 12, 13, 14
+    ]
+}
 
 
 def get_outputs(
@@ -70,19 +83,86 @@ def get_outputs(
         ]
 
     return outputs, heatmaps, tags
-
-
 def get_multi_stage_outputs(
         cfg, model, image, with_flip=False,
         project2image=False, size_projected=None
 ):
+    """
+    1. 预测。
+        返回两个尺度(1/4 1/2)
+        1/4:预测heatmap+tag，各17个channel，所以共34,shape=(1,34,1/4.1/4)
+        1/2:预测heatmap，shape=(1,17,1/2,1/2)
+    2. post process
+        1. 1/4的heatmap+tag插值到1/2
+        2. 和第二个1/2的heatmap求平均，得到最终的heatmap
+        3. 1/2 heatmap和1/4 tag全部插值到原图大小
+    """
     # outputs = []
     heatmaps_avg = 0
     num_heatmaps = 0
     heatmaps = []
     tags = []
+    test_trt = True
+    if test_trt:
+        import time
+        from onnx2trt import infer_trt
+        all_time = 0
+        time_avg = 0
+        for i in range(10):
+            t1 = time.time()
+            # outputs = model(image)
+            output = infer_trt(image)
+            outputs, tags, heatmaps  = output[0:2], [output[2]], [output[3]]
+            t2 = time.time()
+            print("HRNet Inference time with the TensorRT engine: {}".format(t2 - t1))
+            all_time += t2-t1
+            if i >0: time_avg += t2 - t1
+        print("HRNet avg time : {}".format(time_avg / 9))
+        print("infer all time : {}".format(all_time))
+    else:
+        # outputs = infer_trt(image)
+        outputs, heatmaps, tags = model(image)
 
-    outputs = model(image)
+    return outputs, heatmaps, tags
+
+def get_multi_stage_outputs111(
+        cfg, model, image, with_flip=False,
+        project2image=False, size_projected=None
+):
+    """
+    1. 预测。
+        返回两个尺度(1/4 1/2)
+        1/4:预测heatmap+tag，各17个channel，所以共34,shape=(1,34,1/4.1/4)
+        1/2:预测heatmap，shape=(1,17,1/2,1/2)
+    2. post process
+        1. 1/4的heatmap+tag插值到1/2
+        2. 和第二个1/2的heatmap求平均，得到最终的heatmap
+        3. 1/2 heatmap和1/4 tag全部插值到原图大小
+    """
+    # outputs = []
+    heatmaps_avg = 0
+    num_heatmaps = 0
+    heatmaps = []
+    tags = []
+    test_trt = True
+    if test_trt:
+        import time
+        from onnx2trt import infer_trt
+        all_time = 0
+        time_avg = 0
+        for i in range(10):
+            t1 = time.time()
+            # outputs = model(image)
+            outputs = infer_trt(image)
+            t2 = time.time()
+            print("HRNet Inference time with the TensorRT engine: {}".format(t2 - t1))
+            all_time += t2-t1
+            if i >0: time_avg += t2 - t1
+        print("HRNet avg time : {}".format(time_avg / 9))
+        print("infer all time : {}".format(all_time))
+    else:
+        # outputs = infer_trt(image)
+        outputs = model(image)
     for i, output in enumerate(outputs):
         if len(outputs) > 1 and i != len(outputs) - 1:
             output = torch.nn.functional.interpolate(
@@ -103,7 +183,7 @@ def get_multi_stage_outputs(
             tags.append(output[:, offset_feat:])
 
     if num_heatmaps > 0:
-        heatmaps.append(heatmaps_avg/num_heatmaps)
+        heatmaps.append(heatmaps_avg / num_heatmaps)
 
     if with_flip:
         if 'coco' in cfg.DATASET.DATASET:
@@ -117,7 +197,10 @@ def get_multi_stage_outputs(
 
         heatmaps_avg = 0
         num_heatmaps = 0
-        outputs_flip = model(torch.flip(image, [3]))
+        if test_trt:
+            outputs_flip = infer_trt(torch.flip(image, [3]))
+        else:
+            outputs_flip = model(torch.flip(image, [3]))
         for i in range(len(outputs_flip)):
             output = outputs_flip[i]
             if len(outputs_flip) > 1 and i != len(outputs_flip) - 1:
@@ -143,7 +226,7 @@ def get_multi_stage_outputs(
                 if cfg.MODEL.TAG_PER_JOINT:
                     tags[-1] = tags[-1][:, flip_index, :, :]
 
-        heatmaps.append(heatmaps_avg/num_heatmaps)
+        heatmaps.append(heatmaps_avg / num_heatmaps)
 
     if cfg.DATASET.WITH_CENTER and cfg.TEST.IGNORE_CENTER:
         heatmaps = [hms[:, :-1] for hms in heatmaps]
@@ -190,7 +273,7 @@ def aggregate_results(
         for tms in tags:
             tags_list.append(torch.unsqueeze(tms, dim=4))
 
-    heatmaps_avg = (heatmaps[0] + heatmaps[1])/2.0 if cfg.TEST.FLIP_TEST \
+    heatmaps_avg = (heatmaps[0] + heatmaps[1]) / 2.0 if cfg.TEST.FLIP_TEST \
         else heatmaps[0]
 
     if final_heatmaps is None:
